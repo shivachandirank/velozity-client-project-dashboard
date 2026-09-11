@@ -23,10 +23,17 @@ export const LoginPage: React.FC = () => {
       if (res.success) {
         navigate('/dashboard');
       } else {
-        setErrorMsg(res.error?.message || 'Login failed');
+        setErrorMsg(res.error?.message || 'Invalid credentials');
       }
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.error?.message || 'Failed to authenticate. Check server connection.');
+      const message = err.response?.data?.error?.message;
+      if (message) {
+        setErrorMsg(message);
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        setErrorMsg('Waking up server on Render free tier... Please wait 10 seconds and click Sign In again.');
+      } else {
+        setErrorMsg('Failed to authenticate. Check server connection.');
+      }
     }
   };
 
