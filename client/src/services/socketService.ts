@@ -12,7 +12,9 @@ export function connectSocket(queryClient: QueryClient) {
 
   if (socket && socket.connected) return socket;
 
-  socket = io(window.location.origin, {
+  const targetUrl = import.meta.env.VITE_API_URL || window.location.origin;
+
+  socket = io(targetUrl, {
     auth: { token: `Bearer ${token}` },
     transports: ['websocket'],
     reconnection: true,
