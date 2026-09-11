@@ -1,0 +1,4 @@
+server/
+docker-compose.yml
+README.md
+.git/
