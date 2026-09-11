@@ -21,6 +21,7 @@
     "@prisma/client": "^5.22.0",
     "deep-eql": "^5.0.2",
     "mlly": "^1.8.2",
+    "prisma": "^5.22.0",
     "type-detect": "^4.1.0"
   },
   "optionalDependencies": {
