@@ -19,7 +19,19 @@ const activeUserSockets = new Map<string, Set<string>>();
 export function initSocketServer(httpServer: HttpServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const configuredClient = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+        const cleanOrigin = origin.replace(/\/$/, '');
+        if (
+          cleanOrigin === configuredClient ||
+          cleanOrigin === 'http://localhost:5173' ||
+          cleanOrigin.endsWith('.vercel.app')
+        ) {
+          return callback(null, true);
+        }
+        return callback(null, true);
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },

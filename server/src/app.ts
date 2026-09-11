@@ -11,10 +11,22 @@ export const app = express();
 // Security Headers
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration supporting dynamic Vercel subdomains
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const configuredClient = env.CLIENT_URL.replace(/\/$/, '');
+      const cleanOrigin = origin.replace(/\/$/, '');
+      if (
+        cleanOrigin === configuredClient ||
+        cleanOrigin === 'http://localhost:5173' ||
+        cleanOrigin.endsWith('.vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
