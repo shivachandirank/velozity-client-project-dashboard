@@ -1,5 +1,9 @@
 # Velozity Client Project Dashboard
 
+[![Live Frontend](https://img.shields.io/badge/Frontend-Vercel-blue?style=for-the-badge&logo=vercel)](https://github.com/shivachandirank/velozity-client-project-dashboard)
+[![Live Backend](https://img.shields.io/badge/Backend-Render-green?style=for-the-badge&logo=render)](https://github.com/shivachandirank/velozity-client-project-dashboard)
+[![Build & Tests](https://img.shields.io/badge/Tests-12%2F12%20Passed-brightgreen?style=for-the-badge)](https://github.com/shivachandirank/velozity-client-project-dashboard)
+
 Full-stack TypeScript implementation for the Velozity technical assessment. Built with Express, Node.js, Prisma ORM, PostgreSQL, Socket.IO, node-cron, React, Vite, TanStack Query, and Tailwind CSS.
 
 ---
