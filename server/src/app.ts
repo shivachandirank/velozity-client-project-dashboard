@@ -38,9 +38,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+import { seedDatabase } from './services/autoSeedService';
+
 // Health Check Endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Automatic Remote Seed Endpoint
+app.get('/api/seed', async (req, res) => {
+  try {
+    await seedDatabase();
+    res.json({ success: true, message: 'Database seeded successfully with demo accounts, projects, tasks, and activity logs.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err instanceof Error ? err.message : 'Seed failed' });
+  }
 });
 
 // Main API Routes
