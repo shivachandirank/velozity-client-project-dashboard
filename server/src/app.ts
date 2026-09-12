@@ -40,6 +40,15 @@ app.use(cookieParser());
 
 import { seedDatabase } from './services/autoSeedService';
 
+// Root Welcome Handler
+app.get('/', (req, res) => {
+  res.json({
+    message: '⚡ Velozity Backend API is running successfully!',
+    health: '/health',
+    seed: '/api/seed',
+  });
+});
+
 // Health Check Endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
