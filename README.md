@@ -2,100 +2,212 @@
 
 [![Live Frontend](https://img.shields.io/badge/Frontend-Vercel-blue?style=for-the-badge&logo=vercel)](https://github.com/shivachandirank/velozity-client-project-dashboard)
 [![Live Backend](https://img.shields.io/badge/Backend-Render-green?style=for-the-badge&logo=render)](https://github.com/shivachandirank/velozity-client-project-dashboard)
-[![Build & Tests](https://img.shields.io/badge/Tests-12%2F12%20Passed-brightgreen?style=for-the-badge)](https://github.com/shivachandirank/velozity-client-project-dashboard)
+[![Build & Tests](https://img.shields.io/badge/Tests-13%2F13%20Passed-brightgreen?style=for-the-badge)](https://github.com/shivachandirank/velozity-client-project-dashboard)
 
-Full-stack TypeScript implementation for the Velozity technical assessment. Built with Express, Node.js, Prisma ORM, PostgreSQL, Socket.IO, node-cron, React, Vite, TanStack Query, and Tailwind CSS.
-
----
-
-## Technical Assessment Explanation
-
-The most technical part of this assessment was ensuring data security and real-time updates were enforced consistently across both REST endpoints and WebSockets without incurring excessive database latency.
-
-For real-time activity updates, I chose Socket.IO over raw WebSockets because Socket.IO provides native room abstractions (`project:{id}`, `user:{id}`) and connection state recovery out of the box. During the initial socket handshake, the server verifies the JWT access token and assigns the authenticated user payload to `socket.data.user`. Room join requests (`join:project`) are validated against database permissions—so Project Managers can only join rooms for projects they own, and Developers can only join rooms where they have active task assignments. When a status transition occurs, it executes inside a Prisma `$transaction` that updates the task, logs an `ActivityLog` row, and creates a `Notification`. The server then multi-casts `activity:created` and `notification:created` events only to authorized client rooms.
-
-To handle offline catch-up, clients call `GET /api/activity/recent` upon reconnection. Rather than storing transient events in an in-memory queue that would get lost on process restarts, the endpoint queries PostgreSQL directly with role-based filters (global for Admins, owned projects for PMs, assigned tasks for Devs) returning the latest 20 activity records.
-
-Security is enforced on every API route using reusable Express middleware (`authenticate`, `authorizeRoles`, `authorizeProjectAccess`, `authorizeTaskAccess`). Attempting to tamper with task or project IDs in the URL results in an immediate 403 Forbidden response backed by database checks against `req.user.id`.
-
-If I had more time, I would set up a Redis adapter for multi-node Socket.IO scaling and use BullMQ with Redis for distributed background job execution across cluster instances.
+Full-stack TypeScript implementation for the Velozity Technical Assessment. Built with Node.js, Express, Prisma ORM, PostgreSQL, Socket.IO, node-cron, React, Vite, TanStack Query, Zustand, and Tailwind CSS.
 
 ---
 
-## Architecture Overview
+## 🚀 Local Setup Instructions
 
-```
-client/ (React + Vite + TS + Tailwind + TanStack Query)
-   │
-   ├── REST Requests (JWT Access Token in header)
-   └── WebSockets (Socket.IO + Auth Handshake)
-   │
-server/ (Express + TS + Prisma + Socket.IO + node-cron)
-   │
-   ├── Routes & Middleware (JWT verification + Strict RBAC)
-   ├── Services & Transactions (Prisma $transaction for Task + ActivityLog)
-   └── Background Cron (node-cron for overdue tasks)
-   │
-PostgreSQL Database
+### 1. Configure Environment
+Copy `.env.example` to create local `.env` files in root and `server/`:
+```bash
+cp .env.example .env
+cp .env.example server/.env
 ```
 
----
+### 2. Method A: Docker Setup (Preferred)
+Start the PostgreSQL container via Docker Compose:
+```bash
+# 1. Start PostgreSQL container
+docker-compose up -d
 
-## Database Schema & Indexing Decisions
+# 2. Install workspace dependencies
+npm install
 
-The database uses PostgreSQL with Prisma ORM. Indexes were placed on foreign keys and columns frequently used in filtering and sorting:
+# 3. Push schema & run database seed script
+cd server
+npm run prisma:push
+npm run seed
+cd ..
 
-- **User**: `email` (unique lookup during login), `role` (team filtering)
-- **Project**: `ownerId` (PM project permission checks), `clientId` (client aggregations)
-- **Task**: `projectId`, `assignedDeveloperId` (dev task isolation), `status`, `priority`, `dueDate`, `isOverdue` (overdue cron job & URL filters), composite `[projectId, status]`
-- **ActivityLog**: `projectId`, `taskId`, `userId`, `createdAt`, composite `[projectId, createdAt]` (fast 20-item catch-up queries)
-- **Notification**: `recipientId`, `isRead`, `createdAt`, composite `[recipientId, isRead]` (unread count queries)
-- **RefreshToken**: `userId`, `expiresAt` (token rotation and revocation lookups)
-
----
-
-## Project Structure
-
+# 4. Start concurrent client & server dev servers
+npm run dev
 ```
-velozity-client-project-dashboard/
-├── client/                     # React Vite TypeScript frontend
-│   ├── src/
-│   │   ├── components/         # UI components & modals
-│   │   ├── hooks/              # Custom auth and data hooks
-│   │   ├── layouts/            # Sidebar layout & header
-│   │   ├── lib/                # Axios instance with 401 refresh interceptors
-│   │   ├── pages/              # Role dashboards & views
-│   │   ├── services/           # Socket.IO client manager
-│   │   ├── stores/             # Zustand in-memory auth store
-│   │   └── types/              # TS interface definitions
-├── server/                     # Express TypeScript backend
-│   ├── prisma/
-│   │   ├── schema.prisma       # Relational models & indexes
-│   │   └── seed.ts             # Seeding script
-│   ├── src/
-│   │   ├── config/             # Zod environment parser
-│   │   ├── controllers/        # Express HTTP controllers
-│   │   ├── jobs/               # Scheduled overdue cron job
-│   │   ├── middleware/         # Auth, RBAC, and error handlers
-│   │   ├── repositories/       # Database access queries
-│   │   ├── routes/             # API routing
-│   │   ├── services/           # Business logic & DB transactions
-│   │   ├── sockets/            # Socket.IO authentication & presence
-│   │   └── validators/         # Zod request validators
-├── docker-compose.yml          # PostgreSQL container configuration
-├── .env.example                # Environment template
-└── package.json                # Monorepo workspaces setup
+
+### 3. Method B: Manual Local Setup (Alternative)
+If running an existing PostgreSQL instance on port `5432`:
+```bash
+# 1. Update DATABASE_URL in .env to point to your local PostgreSQL instance
+DATABASE_URL="postgresql://postgres:password@localhost:5432/velozity_db?schema=public"
+
+# 2. Install dependencies, push schema, and seed
+npm install
+cd server
+npm run prisma:push
+npm run seed
+cd ..
+
+# 3. Launch application
+npm run dev
+```
+
+- **Client**: `http://localhost:5173`
+- **Server API**: `http://localhost:5000`
+
+### 4. Run Automated Test Suite
+```bash
+cd server
+npm run test
 ```
 
 ---
 
-## Demo Credentials
+## 📊 Database Schema Diagram & Description
 
-Password for all development accounts: **`Password123!`**
+```mermaid
+erDiagram
+    User ||--o{ Project : "owns (PM)"
+    User ||--o{ Task : "assignedTo (Dev)"
+    User ||--o{ ActivityLog : "performs"
+    User ||--o{ Notification : "receives"
+    User ||--o{ RefreshToken : "owns"
+    Client ||--o{ Project : "has"
+    Project ||--o{ Task : "contains"
+    Project ||--o{ ActivityLog : "logs"
+    Task ||--o{ ActivityLog : "tracks"
 
-| Role | Email | Notes |
+    User {
+        string id PK
+        string name
+        string email UK
+        string passwordHash
+        Role role "ADMIN | PROJECT_MANAGER | DEVELOPER"
+        datetime createdAt
+        datetime updatedAt
+        datetime lastSeenAt
+        boolean isActive
+    }
+
+    Client {
+        string id PK
+        string name
+        string email
+        string company
+        datetime createdAt
+    }
+
+    Project {
+        string id PK
+        string name
+        string description
+        string clientId FK
+        string ownerId FK
+        datetime createdAt
+    }
+
+    Task {
+        string id PK
+        string title
+        string description
+        string projectId FK
+        string assignedDeveloperId FK
+        TaskStatus status "TODO | IN_PROGRESS | IN_REVIEW | DONE"
+        Priority priority "LOW | MEDIUM | HIGH | CRITICAL"
+        datetime dueDate
+        boolean isOverdue
+    }
+
+    ActivityLog {
+        string id PK
+        string projectId FK
+        string taskId FK
+        string userId FK
+        string action
+        TaskStatus previousStatus
+        TaskStatus newStatus
+        string description
+        datetime createdAt
+    }
+
+    Notification {
+        string id PK
+        string recipientId FK
+        string actorId FK
+        string taskId FK
+        string projectId FK
+        NotificationType type "TASK_ASSIGNED | TASK_IN_REVIEW"
+        string message
+        boolean isRead
+        datetime createdAt
+    }
+
+    RefreshToken {
+        string id PK
+        string userId FK
+        string tokenHash UK
+        datetime expiresAt
+        datetime revokedAt
+    }
+```
+
+### Table Schema & Indexing Rationale
+- **`User`**: Indexes on `email` (fast lookup during login) and `role` (team filtering).
+- **`Project`**: Foreign key indexes on `ownerId` (PM project permission checks) and `clientId`.
+- **`Task`**: Indexes on `projectId`, `assignedDeveloperId` (Developer task isolation), `status`, `priority`, `dueDate`, `isOverdue` (overdue cron job queries), and composite index `[projectId, status]`.
+- **`ActivityLog`**: Indexes on `projectId`, `taskId`, `userId`, `createdAt`, and composite index `[projectId, createdAt]` for rapid, role-filtered missed event catchup queries.
+- **`Notification`**: Indexes on `recipientId`, `isRead`, `createdAt`, and composite index `[recipientId, isRead]` (fast unread count aggregations).
+- **`RefreshToken`**: Index on `userId` and unique index on `tokenHash` (efficient token rotation & revocation).
+
+---
+
+## 🏗️ Architectural Decisions
+
+### 1. WebSocket Library Choice: Socket.IO
+- **Why Socket.IO over raw WebSockets (`ws`)**:
+  - **Native Room Abstractions**: Socket.IO natively supports channels/rooms (`project:{id}`, `user:{id}`, `admin:global`), allowing role-scoped broadcasting without writing custom pub/sub room management.
+  - **Authentication Handshake**: Integrates seamlessly with Express/JWT authentication during connection establishment (`socket.handshake.auth`).
+  - **Connection State Recovery & Automatic Reconnection**: Provides automatic reconnect handling out of the box when network connectivity drops.
+
+### 2. Job Queue Choice: In-Process `node-cron`
+- **Why `node-cron` over `BullMQ` + `Redis`**:
+  - **Assessment Scope & Simplicity**: For single-instance execution, `node-cron` evaluates overdue tasks every hour (and on startup) without requiring an additional Redis infrastructure dependency.
+  - **Transactional Safety**: Overdue checks execute transactional status queries (`UPDATE Task SET isOverdue = true WHERE dueDate < NOW() AND status != 'DONE'`), preventing race conditions.
+  - *Production Trade-off*: In a distributed multi-node production setup, BullMQ with Redis locks would be used to prevent duplicate execution across cluster replicas.
+
+### 3. Token Storage Approach: Dual-Token Architecture
+- **JWT Access Token (15 Minutes)**: Short-lived access tokens stored strictly in client memory (`Zustand` store) and attached via Axios request headers (`Authorization: Bearer <token>`). Prevents XSS token exfiltration.
+- **Refresh Token (7 Days)**:
+  - Stored in an `HTTP-Only`, `SameSite=Lax`, `Secure` cookie.
+  - Persisted in PostgreSQL (`RefreshToken` table) as a cryptographic SHA-256 hash.
+  - **Refresh Token Rotation**: Upon calling `POST /api/auth/refresh`, the old refresh token is immediately revoked and replaced with a newly generated hashed token pair.
+
+---
+
+## ⚠️ Known Limitations
+
+1. **Multi-Node WebSocket Scaling**:
+   - Current socket connection presence and rooms are managed in-memory on a single node instance.
+   - *Mitigation for scale*: Horizontal scaling across multiple server instances requires attaching a Socket.IO Redis Adapter (`@socket.io/redis-adapter`) for cross-node event broadcasting.
+
+2. **Distributed Job Locks**:
+   - The background overdue job runs in-process using `node-cron`. If multiple application servers are spun up behind a load balancer, each server would trigger the cron job independently.
+   - *Mitigation for scale*: Transition background jobs to a Redis-backed queue like BullMQ with distributed locking.
+
+3. **In-Memory Presence Tracking**:
+   - Online user presence counts are computed using an in-memory `Set` of active user socket IDs.
+   - *Mitigation for scale*: Store active presence heartbeats in a Redis key-value store with TTLs.
+
+---
+
+## 🔑 Demo Credentials
+
+Password for all pre-seeded accounts: **`Password123!`**
+
+| Role | Email | Access Scope |
 | :--- | :--- | :--- |
-| **Admin** | `admin@velozity.demo` | Full access across all clients, projects, tasks, users |
+| **Admin** | `admin@velozity.demo` | Unrestricted global access to all clients, projects, tasks, and users |
 | **Project Manager 1** | `pm1@velozity.demo` | Manages Website Redesign & Mobile App projects |
 | **Project Manager 2** | `pm2@velozity.demo` | Manages Enterprise ERP System project |
 | **Developer 1** | `dev1@velozity.demo` | Assigned to tasks in Website Redesign & Mobile App |
@@ -105,37 +217,10 @@ Password for all development accounts: **`Password123!`**
 
 ---
 
-## Development Setup
+## 🧪 Running Tests
 
-### 1. Configure Environment
-Copy `.env.example` to `.env` in root and `server/`:
-```bash
-cp .env.example .env
-cp .env.example server/.env
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Setup Database & Seed
-Make sure PostgreSQL is running on port `5432` (or via docker-compose), then push schema and seed demo data:
 ```bash
 cd server
-npm run prisma:push
-npm run seed
-cd ..
-```
-
-### 4. Run Development Server
-```bash
-npm run dev
-```
-- App: `http://localhost:5173`
-- API: `http://localhost:5000`
-
-### 5. Run Test Suite
-```bash
 npm run test
 ```
+Runs the full Vitest suite covering API endpoints, role-based access control, task status updates, notifications, overdue jobs, and missed event catchup filtering.
